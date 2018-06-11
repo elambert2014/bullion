@@ -1,0 +1,22 @@
+<!DOCTYPE RCC><RCC version="1.0">
+    <qresource prefix="/translations">
+        <file alias="en">locale/bullion_en.qm</file>
+        <file alias="es">locale/bullion_es.qm</file>
+        <file alias="fr">locale/bullion_fr.qm</file>
+        <file alias="it">locale/bullion_it.qm</file>
+        <file alias="zh_CN">locale/bullion_zh_CN.qm</file>
+<!--
+        <file alias="bg">locale/bullion_bg.qm</file>
+        <file alias="de">locale/bullion_de.qm</file>
+        <file alias="fi">locale/bullion_fi.qm</file>
+        <file alias="ja">locale/bullion_ja.qm</file>
+        <file alias="pl">locale/bullion_pl.qm</file>
+        <file alias="pt">locale/bullion_pt.qm</file>
+        <file alias="ru">locale/bullion_ru.qm</file>
+        <file alias="sk">locale/bullion_sk.qm</file>
+        <file alias="sv">locale/bullion_sv.qm</file>
+        <file alias="vi">locale/bullion_vi.qm</file>
+        <file alias="zh_TW">locale/bullion_zh_TW.qm</file>
+-->
+    </qresource>
+</RCC>

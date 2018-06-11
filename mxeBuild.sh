@@ -1,0 +1,2 @@
+MXE_PATH=/home/alexandre/sandbox/mxe
+./configure --with-gui=qt5 --host=x86_64-w64-mingw32.static --with-boost-libdir="$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" --with-qt-plugindir="$MXE_PATH/usr/x86_64-w64-mingw32.static/qt5/plugins"
