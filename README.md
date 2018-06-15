@@ -3,7 +3,7 @@ Bullion
 Proof of Stake Hybrid
 featuring PoSP (Proof-of-Stake-Participation)
 
-http://cryptobullion.io/white-paper/
+https://bullion.one/docs/PoSP_White-Paper-Dec-2015-Release.pdf
 
 Scrypt
 
@@ -14,7 +14,7 @@ Blocks 1-55000 = 10 CBX per;
 Blocks 55001-95000 = 5 CBX per;
 Blocks 95001-145000 = 2.5 CBX per;
 Blocks 145001-195000 = 1.25 CBX per
-etc
+etc.
 
 Coin mint of < 1000000
 
@@ -26,7 +26,7 @@ Default RPC Port: 8395
 
 Sample config file:
 
-create a file and name it Bullion.conf
+create a file and name it bullion.conf
 
 And copy/paste the following contents:
 
@@ -52,9 +52,9 @@ listen=0
 
 maxconnections=100
 
-addnode=seed.cryptobullion.io
+addnode=node1.bullion.one
 
-addnode=blockexplorer.cryptobullion.io
+addnode=node2.bullion.one
 
 addnode=173.230.133.205
 
@@ -83,11 +83,11 @@ addnode=119.9.15.177
 
 
 Replace username and password with your own username and password.  Do not use the same username/password that is the same as 
-something sensitive, like a website.  
+something sensitive, like a website.
 
 Place the file in your data directory. (you need to run the Qt or daemon once before you do this)
 
-If using Linux, the data directory is located at /home/User/.Bullion
+If using Linux, the data directory is located at /home/User/.bullion
 where User is your login username for your system.
 
 If using Windows, the data directory is located at C:\Users\USERNAME\AppData\Roaming\Bullion where USERNAME is replaced with your Windows Username.
