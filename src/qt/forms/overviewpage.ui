@@ -432,9 +432,6 @@
            <height>150</height>
           </size>
          </property>
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;These yield figures are approximations, based on your Vault inputs and the state of the Bullion network at this precise moment.&lt;br/&gt;These figures are based on the assumption that network participation parameters will remain the same.&lt;br/&gt;Actual performance will differ from these values.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
          <property name="layoutDirection">
           <enum>Qt::LeftToRight</enum>
          </property>
@@ -510,6 +507,12 @@
                <weight>75</weight>
                <bold>true</bold>
               </font>
+             </property>
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;These yield figures are approximations, based on your Vault inputs and the state of the Bullion network at this precise moment.&lt;br/&gt;These figures are based on the assumption that network participation parameters will remain the same.&lt;br/&gt;Actual performance will differ from these values.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="toolTipDuration">
+              <number>60000</number>
              </property>
              <property name="text">
               <string>Staking Instant Analysis</string>
