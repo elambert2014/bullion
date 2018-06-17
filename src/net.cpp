@@ -37,6 +37,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
+#include <curl/curl.h>
+
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
@@ -161,47 +163,6 @@ CAddress GetLocalAddress(const CNetAddr* paddrPeer)
     ret.nServices = nLocalServices;
     ret.nTime = GetAdjustedTime();
     return ret;
-}
-
-bool RecvLine(SOCKET hSocket, string& strLine)
-{
-    strLine = "";
-    while (true) {
-        char c;
-        int nBytes = recv(hSocket, &c, 1, 0);
-        if (nBytes > 0) {
-            if (c == '\n')
-                continue;
-            if (c == '\r')
-                return true;
-            strLine += c;
-            if (strLine.size() >= 9000)
-                return true;
-        } else if (nBytes <= 0) {
-            boost::this_thread::interruption_point();
-            if (nBytes < 0) {
-                int nErr = WSAGetLastError();
-                if (nErr == WSAEMSGSIZE)
-                    continue;
-                if (nErr == WSAEWOULDBLOCK || nErr == WSAEINTR || nErr == WSAEINPROGRESS) {
-                    MilliSleep(10);
-                    continue;
-                }
-            }
-            if (!strLine.empty())
-                return true;
-            if (nBytes == 0) {
-                // socket closed
-                LogPrint("net", "socket closed\n");
-                return false;
-            } else {
-                // socket error
-                int nErr = WSAGetLastError();
-                LogPrint("net", "recv failed: %s\n", NetworkErrorString(nErr));
-                return false;
-            }
-        }
-    }
 }
 
 int GetnScore(const CService& addr)
@@ -1516,57 +1477,104 @@ bool BindListenPort(const CService& addrBind, string& strError, bool fWhiteliste
 }
 
 
-bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const char* pszKeyword, CNetAddr& ipRet)
+static size_t GetMyExternalIP3Callback(char *ptr, size_t size, size_t nmemb, void *userdata)
 {
-    SOCKET hSocket;
-    if (!ConnectSocket(addrConnect, hSocket, 10000))
-        return error("GetMyExternalIP() : connection to %s failed", addrConnect.ToString().c_str());
+    size_t realsize = size * nmemb;
+    std::string& response = *(std::string*)userdata;
+    char* newData = (char*)malloc((realsize + 1) * sizeof(char));
+    memcpy(newData, ptr, realsize * sizeof(char));
+    newData[realsize] = '\0';
 
-    send(hSocket, pszGet, strlen(pszGet), MSG_NOSIGNAL);
+    if (response.length() < 10240)
+        response += newData;    // Stop buffering text after 10k
+    free(newData);
 
-    string strLine;
-    while (RecvLine(hSocket, strLine))
-    {
-        if (strLine.empty()) // HTTP response is separated from headers by blank line
-        {
-            while (true)
-            {
-                if (!RecvLine(hSocket, strLine))
-                {
-                    CloseSocket(hSocket);
-                    return false;
-                }
-                if (pszKeyword == NULL)
-                    break;
-                if (strLine.find(pszKeyword) != string::npos)
-                {
-                    strLine = strLine.substr(strLine.find(pszKeyword) + strlen(pszKeyword));
-                    break;
-                }
-            }
-            CloseSocket(hSocket);
-            if (strLine.find("<") != string::npos)
-                strLine = strLine.substr(0, strLine.find("<"));
-            strLine = strLine.substr(strspn(strLine.c_str(), " \t\n\r"));
-            while (strLine.size() > 0 && isspace(strLine[strLine.size()-1]))
-                strLine.resize(strLine.size()-1);
-            CService addr(strLine,0,true);
-            LogPrintf("GetMyExternalIP() received [%s] %s\n", strLine.c_str(), addr.ToString().c_str());
-            if (!addr.IsValid() || !addr.IsRoutable())
-                return false;
-            ipRet.SetIP(addr);
-            return true;
-        }
-    }
-    CloseSocket(hSocket);
-    return error("GetMyExternalIP() : connection closed");
+    return realsize;
 }
 
-// We now get our external IP from the IRC server first and only use this as a backup
+bool GetMyExternalIP3(const char* pszUrl, const char* pszKeyword, CNetAddr& ipRet)
+{
+    CURL *conn = NULL;
+    CURLcode code;
+    char errorBuffer[CURL_ERROR_SIZE] = {'\0'};
+    std::string response;
+
+
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    conn = curl_easy_init();
+
+    if (conn == NULL) {
+        LogPrintf("Failed to create CURL connection\n");
+        return false;
+    }
+
+    code = curl_easy_setopt(conn, CURLOPT_ERRORBUFFER, errorBuffer);
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to set error buffer [%d]\n", code);
+        curl_easy_cleanup(conn);
+        return false;
+    }
+
+    code = curl_easy_setopt(conn, CURLOPT_URL, pszUrl);
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to set URL [%s]\n", errorBuffer);
+        curl_easy_cleanup(conn);
+        return false;
+    }
+
+    code = curl_easy_setopt(conn, CURLOPT_FOLLOWLOCATION, 1L);
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to set redirect option [%s]\n", errorBuffer);
+        curl_easy_cleanup(conn);
+        return false;
+    }
+
+    code = curl_easy_setopt(conn, CURLOPT_WRITEFUNCTION, GetMyExternalIP3Callback);
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to set write data [%s]\n", errorBuffer);
+        curl_easy_cleanup(conn);
+        return false;
+    }
+
+    code = curl_easy_setopt(conn, CURLOPT_WRITEDATA, &response);
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to set write data [%s]\n", errorBuffer);
+        curl_easy_cleanup(conn);
+        return false;
+    }
+
+    // Retrieve URL contents
+    code = curl_easy_perform(conn);
+    curl_easy_cleanup(conn);
+
+    // Check return code
+    if (code != CURLE_OK) {
+        LogPrintf("Failed to get '%s' [%s]\n", pszUrl, errorBuffer);
+        return false;
+    }
+
+    if (pszKeyword != NULL && response.find(pszKeyword) != string::npos)
+    {
+        response = response.substr(response.find(pszKeyword) + strlen(pszKeyword));
+    }
+
+    if (response.find("<") != string::npos)
+        response = response.substr(0, response.find("<"));
+    response = response.substr(strspn(response.c_str(), " \t\n\r"));
+    while (response.size() > 0 && isspace(response[response.size()-1]))
+        response.resize(response.size()-1);
+    CService addr(response, 0, true);
+    LogPrintf("GetMyExternalIP3() received [%s] %s\n", response.c_str(), addr.ToString().c_str());
+    if (!addr.IsValid() || !addr.IsRoutable())
+        return false;
+    ipRet.SetIP(addr);
+    return true;
+}
+
 bool GetMyExternalIP(CNetAddr& ipRet)
 {
-    CService addrConnect;
-    const char* pszGet;
+    std::string strServer;
+    std::string strPath;
     const char* pszKeyword;
 
     for (int nLookup = 0; nLookup <= 1; nLookup++)
@@ -1578,44 +1586,18 @@ bool GetMyExternalIP(CNetAddr& ipRet)
         //  <?php echo $_SERVER["REMOTE_ADDR"]; ?>
         if (nHost == 1)
         {
-            addrConnect = CService("91.198.22.70",80); // checkip.dyndns.org
-
-            if (nLookup == 1)
-            {
-                CService addrIP("checkip.dyndns.org", 80, true);
-                if (addrIP.IsValid())
-                    addrConnect = addrIP;
-            }
-
-            pszGet = "GET / HTTP/1.1\r\n"
-                     "Host: checkip.dyndns.org\r\n"
-                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
-                     "Connection: close\r\n"
-                     "\r\n";
-
+            strServer = nLookup == 1 ? "http://checkip.dyndns.org" : "http://91.198.22.70";
+            strPath = "/";
             pszKeyword = "Address:";
         }
         else if (nHost == 2)
         {
-            addrConnect = CService("69.162.69.149", 80); // icanhazip.com
-
-            if (nLookup == 1)
-            {
-                CService addrIP("icanhazip.com", 80, true);
-                if (addrIP.IsValid())
-                    addrConnect = addrIP;
-            }
-
-            pszGet = "GET / HTTP/1.1\r\n"
-                     "Host: icanhazip.com\r\n"
-                     "User-Agent: Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 5.1)\r\n"
-                     "Connection: close\r\n"
-                     "\r\n";
-
+            strServer = nLookup == 1 ? "http://icanhazip.com" : "http://69.162.69.149";
+            strPath = "/";
             pszKeyword = NULL; // Returns just IP address
         }
 
-        if (GetMyExternalIP2(addrConnect, pszGet, pszKeyword, ipRet))
+        if (GetMyExternalIP3((strServer + strPath).c_str(), pszKeyword, ipRet))
             return true;
     }
 
