@@ -138,7 +138,7 @@
         <translation>Utiliser pour désactiver le mode d&apos;envoi trivial de paiement lorsque le compte système est compromis. N&apos;assure pas une sécurité efficace.</translation>
     </message>
     <message>
-        <source>For anonymization and staking only</source>
+        <source>For staking only</source>
         <translation>Pour staking uniquement</translation>
     </message>
     <message>
@@ -806,7 +806,7 @@ Adresse : %4
         <translation>Staking non actif</translation>
     </message>
     <message>
-        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for anonimization and staking only</source>
+        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</source>
         <translation>Le Vault est &lt;b&gt;décrypté&lt;/b&gt; et présentement &lt;b&gt;débarré&lt;/b&gt; pour staking seulement</translation>
     </message>
     <message>

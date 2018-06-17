@@ -138,7 +138,7 @@
         <translation>Sirve  para desactivar sendmoney trivial cuando una cuenta del SO se ve comprometida . No ofrece seguridad real.</translation>
     </message>
     <message>
-        <source>For anonymization and staking only</source>
+        <source>For staking only</source>
         <translation>Solo para prueba de participación</translation>
     </message>
     <message>
@@ -798,7 +798,7 @@ Dirección: %4
         </translation>
     </message>
     <message>
-        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for anonimization and staking only</source>
+        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</source>
         <translation>La Bóveda está &lt;b&gt;cifrada&lt;/b&gt; y &lt;b&gt;desbloqueada&lt;/b&gt; para la prueba de participación solamente</translation>
     </message>
     <message>

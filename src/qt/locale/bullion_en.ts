@@ -171,7 +171,7 @@
     </message>
     <message>
         <location line="+3"/>
-        <source>For anonymization and staking only</source>
+        <source>For staking only</source>
         <translation>For staking only</translation>
     </message>
     <message>
@@ -1000,7 +1000,7 @@ Address: %4
     </message>
     <message>
         <location line="+10"/>
-        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for anonimization and staking only</source>
+        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</source>
         <translation type="unfinished">Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</translation>
     </message>
     <message>

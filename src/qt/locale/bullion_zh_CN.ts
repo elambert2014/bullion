@@ -138,7 +138,7 @@
         <translation>当OS帐号被盗就禁止发送币。这并不提供真正的安全性。</translation>
     </message>
     <message>
-        <source>For anonymization and staking only</source>
+        <source>For staking only</source>
         <translation>仅限匿名</translation>
     </message>
     <message>
@@ -803,7 +803,7 @@ Address: %4
         <translation>放样不活跃</translation>
     </message>
     <message>
-        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for anonimization and staking only</source>
+        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</source>
         <translation>钱包是&lt;b&gt;加密&lt;/b&gt;和目前&lt;b&gt;解锁&lt;/b&gt;仅用于匿名化和放样</translation>
     </message>
     <message>

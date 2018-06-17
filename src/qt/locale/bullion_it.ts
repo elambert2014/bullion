@@ -138,7 +138,7 @@
         <translation>Serve a disabilitare </translation>
     </message>
     <message>
-        <source>For anonymization and staking only</source>
+        <source>For staking only</source>
         <translation>Per la sola anomizzazione</translation>
     </message>
     <message>
@@ -756,8 +756,8 @@ Indirizzo: %4
         <translation>Il Staking non è attivo</translation>
     </message>
     <message>
-        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for anonimization and staking only</source>
-        <translation>Il wallet è &lt;b&gt;cifrato&lt;/b&gt; e attualmente &lt;b&gt;sbloccato&lt;/b&gt; solo per l&apos;anonimizzazione e il staking</translation>
+        <source>Wallet is &lt;b&gt;encrypted&lt;/b&gt; and currently &lt;b&gt;unlocked&lt;/b&gt; for staking only</source>
+        <translation>Il wallet è &lt;b&gt;cifrato&lt;/b&gt; e attualmente &lt;b&gt;sbloccato&lt;/b&gt; solo per il staking</translation>
     </message>
     <message>
         <source>A fatal error occurred. Vault can no longer continue safely and will quit.</source>
