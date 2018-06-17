@@ -3859,15 +3859,15 @@ Modifica il comportamento di voto del budget finalizzato automatico. mode=auto: 
     </message>
     <message>
         <source>Copyright (C) 2009-%i The Bitcoin Core Developers</source>
-        <translation>Diritto d&apos;autore (C) 2009  %i The Bitcoin Core Developers</translation>
+        <translation>Diritto d&apos;autore (C) 2009-%i The Bitcoin Core Developers</translation>
     </message>
     <message>
         <source>Copyright (C) 2014-%i The Dash Core Developers</source>
-        <translation>Diritto d&apos;autore (C) 2014  %i The Dash Core Developers</translation>
+        <translation>Diritto d&apos;autore (C) 2014-%i The Dash Core Developers</translation>
     </message>
     <message>
         <source>Copyright (C) 2015-%i The PIVX Core Developers</source>
-        <translation>Diritto d&apos;autore (C) 2015 %i The PIVX Core Developers</translation>
+        <translation>Diritto d&apos;autore (C) 2015-%i The PIVX Core Developers</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>
@@ -4718,7 +4718,7 @@ ad esempio: alertnotify=echo %%s | mail -s &quot;Vault Alert&quot; admin@foo.com
     </message>
     <message>
         <source>Copyright (C) 2013-%i The Bullion Foundation</source>
-        <translation>Diritto d&apos;autore (C) 2013 - La Fondazione del Bullion</translation>
+        <translation>Diritto d&apos;autore (C) 2013-%i La Fondazione del Bullion</translation>
     </message>
     <message>
         <source>Error loading wallet.dat: Wallet requires newer version of Bullion Vault</source>

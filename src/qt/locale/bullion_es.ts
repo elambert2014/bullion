@@ -3860,15 +3860,15 @@ Sus datos actuales de blockchain serán sobrescritos.</translation>
     </message>
     <message>
         <source>Copyright (C) 2014-%i The Dash Core Developers</source>
-        <translation>Copyright (C) 2014 %i Los desarolladores de Dash</translation>
+        <translation>Copyright (C) 2014-%i Los desarolladores de Dash</translation>
     </message>
     <message>
         <source>Copyright (C) 2015-%i The PIVX Core Developers</source>
-        <translation>Copyright (C) 2015 Los desarrolladores centrales de PIVX</translation>
+        <translation>Copyright (C) 2015-%i Los desarrolladores centrales de PIVX</translation>
     </message>
     <message>
         <source>Copyright (C) 2013-%i The Bullion Foundation</source>
-        <translation>Copyright (C) 2013 %i La Fundación de Bullion</translation>
+        <translation>Copyright (C) 2013-%i La Fundación de Bullion</translation>
     </message>
     <message>
         <source>Corrupted block database detected</source>

@@ -3857,7 +3857,7 @@ Votre image de la blockchain locale sera écrasée (n&apos;affectera pas votre s
     </message>
     <message>
         <source>Copyright (C) 2014-%i The Dash Core Developers</source>
-        <translation>Copyright (C) 2014 %i Développeurs de  Dash Core</translation>
+        <translation>Copyright (C) 2014-%i Développeurs de  Dash Core</translation>
     </message>
     <message>
         <source>Copyright (C) 2015-%i The PIVX Core Developers</source>
