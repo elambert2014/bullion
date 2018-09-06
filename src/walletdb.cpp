@@ -202,6 +202,11 @@ bool CWalletDB::WriteAccount(const string& strAccount, const CAccount& account)
     return Write(make_pair(string("acc"), strAccount), account);
 }
 
+bool CWalletDB::WriteBPNAddress(const CKeyID & keyId, const std::string empty)
+{
+    return Write(make_pair(string("bpnaddress"), keyId), empty);
+}
+
 bool CWalletDB::WriteAccountingEntry(const uint64_t nAccEntryNum, const CAccountingEntry& acentry)
 {
     return Write(std::make_pair(std::string("acentry"), std::make_pair(acentry.strAccount, nAccEntryNum)), acentry);
@@ -556,6 +561,10 @@ bool ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue, CW
                 strErr = "Error reading wallet database: LoadDestData failed";
                 return false;
             }
+        } else if (strType == "bpnaddress") {
+            CKeyID bpnPubKey;
+            ssKey >> bpnPubKey;
+            pwallet->setBPNAddresses.insert(bpnPubKey);
         }
     } catch (...) {
         return false;
@@ -658,6 +667,15 @@ DBErrors CWalletDB::LoadWallet(CWallet* pwallet)
 
     if (wss.fAnyUnordered)
         result = ReorderTransactions(pwallet);
+
+    // Prepare BPN
+    unsigned int bpnAddressesPoolSize = pwallet->setBPNAddresses.size();
+    if(bpnAddressesPoolSize < 50)
+        for(unsigned int i=0; i<50-bpnAddressesPoolSize; ++i){
+            CPubKey newKey = pwallet->GenerateNewKey();
+            WriteBPNAddress(newKey.GetID());
+            pwallet->setBPNAddresses.insert(newKey.GetID());
+        }
 
     return result;
 }

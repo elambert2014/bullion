@@ -87,7 +87,27 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool txDe
     if (pnext)
         result.push_back(Pair("nextblockhash", pnext->GetBlockHash().GetHex()));
 
-    result.push_back(Pair("flags", strprintf("%s%s", blockindex->IsProofOfStake() ? (blockindex->nTime >= HARDFORK_TIME ? "proof-of-stake-participation" : "proof-of-stake") : ("proof-of-work"), blockindex->GeneratedStakeModifier()? " stake-modifier": "")));
+    std::string flags;
+    flags = "PoSP";
+
+    if(blockindex->IsProofOfStake())
+    {
+        if(blockindex->nTime >= HARDFORK_TIME)
+            flags = "proof-of-stake-participation";
+        else
+            flags = "proof-of-stake";
+
+        if(blockindex->IsBPNPoSP())
+            flags = "bpn";
+        else if(blockindex->IsBPNKeepAlive())
+            flags = "proof-of-stake-participation-ka";
+    }
+    else if(blockindex->IsMutex())
+        flags = "proof-of-mutex";
+    else
+        flags = "proof-of-work";
+
+    result.push_back(Pair("flags", flags));
     result.push_back(Pair("proofhash", blockindex->IsProofOfStake()? blockindex->hashProofOfStake.GetHex() : blockindex->GetBlockHash().GetHex()));
     result.push_back(Pair("entropybit", (int)blockindex->GetStakeEntropyBit()));
     result.push_back(Pair("modifier", strprintf("%016lx", blockindex->nStakeModifier)));

@@ -159,8 +159,6 @@ extern json_spirit::Value bip38decrypt(const json_spirit::Array& params, bool fH
 extern json_spirit::Value setstakesplitthreshold(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getstakesplitthreshold(const json_spirit::Array& params, bool fHelp);
 
-extern json_spirit::Value createmutex(const json_spirit::Array& params, bool fHelp); // in rpcmining.cpp
-extern json_spirit::Value getbpnplace(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getnetworkhashps(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getmininginfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value prioritisetransaction(const json_spirit::Array& params, bool fHelp);
@@ -170,6 +168,10 @@ extern json_spirit::Value estimatefee(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value estimatepriority(const json_spirit::Array& params, bool fHelp);
 
 extern json_spirit::Value getnewaddress(const json_spirit::Array& params, bool fHelp); // in rpcwallet.cpp
+extern json_spirit::Value getbpnplace(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getbpnaddress(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value createmutex(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value breakbpn(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getaccountaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getrawchangeaddress(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setaccount(const json_spirit::Array& params, bool fHelp);

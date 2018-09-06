@@ -15,16 +15,19 @@
 
 uint256 CBlockHeader::GetHash() const
 {
-    uint256 thash;
-    void * scratchbuff = scrypt_buffer_alloc();
+    if(nVersion < HARDFORKV5_BLOCKVERSION)
+    {
+        uint256 thash;
+        void * scratchbuff = scrypt_buffer_alloc();
 
-    scrypt_hash(CVOIDBEGIN(nVersion), sizeof(block_header), UINTBEGIN(thash), scratchbuff);
+        scrypt_hash(CVOIDBEGIN(nVersion), sizeof(block_header), UINTBEGIN(thash), scratchbuff);
 
-    scrypt_buffer_free(scratchbuff);
+        scrypt_buffer_free(scratchbuff);
 
-    return thash;
+        return thash;
+    }
 
-    //return HashQuark(BEGIN(nVersion), END(nNonce));
+    return Hash(BEGIN(nVersion), END(bpnTx));
 }
 
 uint256 CBlock::BuildMerkleTree(bool* fMutated) const
@@ -274,6 +277,9 @@ bool CBlock::CheckBlockSignature() const
 
         return false;
     }
+
+    if(IsMutex())
+        return true;
 
     // Proof-Of-Stake block
     const CTxOut& txout = vtx[1].vout[1];

@@ -18,6 +18,7 @@
 #include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
+#include "MutexHelper.h"
 
 #include <stdint.h>
 
@@ -109,6 +110,22 @@ Value getnewaddress(const Array& params, bool fHelp)
     return CBitcoinAddress(keyID).ToString();
 }
 
+Value getbpnaddress(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 0)
+        throw runtime_error(
+            "getbpnaddress\n"
+            "\nReturns a new Bullion address for creating a BPN node.\n"
+            "\nResult:\n"
+            "\"cbxaddress\"     (string) The BPN Bullion address\n"
+            "\nExamples:\n" +
+            HelpExampleCli("getbpnaddress", ""));
+
+    CKeyID keyID;
+    pwalletMain->GetAvailableBPNAddress(keyID);
+
+    return CBitcoinAddress(keyID).ToString();
+}
 
 CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
 {
@@ -142,6 +159,127 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew = false)
     }
 
     return CBitcoinAddress(account.vchPubKey.GetID());
+}
+
+Value createmutex(const Array& params, bool fHelp)
+{
+    if(fHelp || params.size() != 2)
+    {
+        throw runtime_error(
+            "createmutex \"BPNAddress\" \"ChangeAddress\"\n"
+            "\nCreate a mutex on a given address using the 'ChangeAddress' for coins excess.\n"
+            "\nArguments:\n"
+            "1. \"BPNAddress\"       (string, required) The address.\n"
+            "2. \"ChangeAddress\"       (string, required) The address.\n"
+            "\nResult:\n"
+            "\"success\"    txid|false\n");
+    }
+
+    CKey bpnAddress, changeAddress;
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bullion address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+
+    if (!pwalletMain->GetKey(keyID, bpnAddress))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+
+    strAddress = params[1].get_str();
+
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bullion address");
+    keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+
+    if (!pwalletMain->GetKey(keyID, changeAddress))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+
+    uint256 mutexTx;
+
+    if(!CreateMutex(bpnAddress, changeAddress, mutexTx))
+        return false;
+
+    return mutexTx.ToString();
+}
+
+Value breakbpn(const Array& params, bool fHelp)
+{
+    if(fHelp || params.size() != 1)
+    {
+        throw runtime_error(
+            "createmutex \"BPNAddress\""
+            "\nStop a BPN.\n"
+            "\nArguments:\n"
+            "1. \"BPNAddress\"       (string, required) The address to break.\n"
+            "\nResult:\n"
+            "\"success\"    true|false\n");
+    }
+
+    CKey bpnAddress;
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(strAddress))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bullion address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+
+    if (!pwalletMain->GetKey(keyID, bpnAddress))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
+
+
+    CReserveKey reservekey(pwalletMain);    
+
+    return pwalletMain->BreakBPN(keyID, reservekey);
+}
+
+Value getbpnplace(const Array& params, bool fHelp)
+{
+    if(fHelp || params.size() != 2)
+    {
+        throw runtime_error(
+            "getbpnplace \"BPNAddress\" \"BPNOriginalTx\"\n"
+            "\nReturn current BPN queue place.\n"
+            "\nArguments:\n"
+            "1. \"BPNAddress\"       (string, required) The address.\n"
+            "2. \"BPNOriginalTx\"       (string, required) The BPN TX.\n"
+            "\nResult:\n"
+            "\"success\"    true|false\n");
+    }
+
+    CKey bpnAddress;
+
+    EnsureWalletIsUnlocked();
+
+    string ustr = params[0].get_str();
+    CBitcoinAddress address;
+    if (!address.SetString(ustr))
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Bullion address");
+    CKeyID keyID;
+    if (!address.GetKeyID(keyID))
+        throw JSONRPCError(RPC_TYPE_ERROR, "Address does not refer to a key");
+
+    if (!pwalletMain->GetKey(keyID, bpnAddress))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + ustr + " is not known");
+
+    ustr = params[1].get_str();
+
+    uint256 bpnTx(ustr);
+
+    if(latestKAMutex.find(make_pair(bpnAddress.GetPubKey().GetID(), bpnTx)) == latestKAMutex.end())    
+        return false;
+
+    return GetBPNPlace(latestKAMutex[make_pair(bpnAddress.GetPubKey().GetID(), bpnTx)], GetAdjustedTime());
 }
 
 Value getaccountaddress(const Array& params, bool fHelp)

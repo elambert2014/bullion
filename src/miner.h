@@ -8,6 +8,7 @@
 #define BITCOIN_MINER_H
 
 #include "uint256.h"
+#include "wallet.h"
 #include <stdint.h>
 
 class CBlock;
@@ -20,8 +21,8 @@ class CWallet;
 struct CBlockTemplate;
 
 /** Generate a new block, without valid proof-of-work */
-CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, CWallet* pwallet, bool fProofOfStake, bool fProofOfWork=false);
-CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey, CWallet* pwallet, bool fProofOfStake, bool fProofOfWork=false);
+CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, CWallet* pwallet, const std::pair<const CWalletTx*, unsigned int> * coin=NULL, bool fKeepAlife=false);
+CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey, CWallet* pwallet, const std::pair<const CWalletTx*, unsigned int> * coin=NULL, bool fKeepAlife=false);
 
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
@@ -29,6 +30,7 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 void UpdateTime(CBlockHeader* block, const CBlockIndex* pindexPrev);
 
 void BitcoinMiner(CWallet* pwallet, bool fProofOfStake);
+void BPNMiner(CWallet* pwallet);
 
 extern double dHashesPerSec;
 extern int64_t nHPSTimerStart;

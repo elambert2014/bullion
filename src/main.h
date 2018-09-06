@@ -39,6 +39,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <atomic>
 
 #include <boost/unordered_map.hpp>
 
@@ -127,17 +128,15 @@ struct BlockHasher {
 typedef struct
 {
     unsigned int nHeight;
-    uint256 mutexAddress;
-    uint256 tx;
+    uint160 bpnAddress;
+    uint256 bpnTx;
     int64_t nTime;
-
-    vector<COutPoint> outputs; // CBX: Keep track of every output created by the tx hash untill it goes out of the address
 } BlockMutexData;
 
-extern set<BlockMutexData *> setBlockMutex;
-extern map<uint256, map<uint256, BlockMutexData *>> mapMutexPubKeyTx; // Map of [pubkey][tx]
-extern map<uint256, BlockMutexData *> mapTxMutex; // Map tx to block mutex data
-extern map<uint256, BlockMutexData *> mapTxFromTxMutex; // Map tx that is coming ("child") from a tx used to create a block mutex
+extern set<int64_t> mapMutexIndex;
+extern map<int64_t, BlockMutexData *> mapMutex; // Map mutex/KA over time
+extern map<pair<uint160, uint256>, BlockMutexData *> mapKAMutex; // Map all KA, PoSP BPN and Mutex block to easily retrieve a mutex
+extern map<pair<uint160, uint256>, int64_t> latestKAMutex; // Store latest KA time for a mutex (bpn address-bpn tx)
 
 extern CScript COINBASE_FLAGS;
 extern CCriticalSection cs_main;
@@ -248,7 +247,8 @@ std::string GetWarnings(std::string strFor);
 /** Retrieve a transaction (from memory pool, or from disk, if possible) */
 bool GetTransaction(const uint256& hash, CTransaction& tx, uint256& hashBlock, bool fAllowSlow = false);
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake, bool fBPN=false);
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
+const CBlockIndex* GetLastBPNBlockIndex(const CBlockIndex* pindex);
 
 /** Find the best known block, and make it the tip of the block chain */
 
@@ -265,7 +265,7 @@ unsigned int GetNextTargetRequiredBPN(const CBlockIndex* pindexLast);
 
 bool ActivateBestChain(CValidationState& state, CBlock* pblock = NULL);
 bool IsBlockValueValid(const CBlock& block, int64_t nExpectedValue);
-CAmount GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS=false, bool fMnode=false);
+CAmount GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS=false);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex* InsertBlockIndex(uint256 hash);

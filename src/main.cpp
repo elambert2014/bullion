@@ -53,11 +53,10 @@ BlockMap mapBlockIndex;
 map<uint256, uint256> mapProofOfStake;
 set<pair<COutPoint, unsigned int> > setStakeSeen;
 
-map<uint256, list<BlockMutexData *>> mapBlockMutex;
-set<BlockMutexData *> setBlockMutex;
-map<uint256, map<uint256, BlockMutexData *>> mapMutexPubKeyTx;
-map<uint256, BlockMutexData *> mapTxMutex;
-map<uint256, BlockMutexData *> mapTxFromTxMutex;
+set<int64_t> mapMutexIndex;
+map<int64_t, BlockMutexData *> mapMutex; // Map mutex over time
+map<pair<uint160, uint256>, BlockMutexData *> mapKAMutex;
+map<pair<uint160, uint256>, int64_t> latestKAMutex;
 
 map<unsigned int, unsigned int> mapHashedBlocks;
 CChain chainActive;
@@ -1508,9 +1507,9 @@ int64_t GetPoSPRewardV2(int64_t nMoneySupply, int nFees){
     return ((nMoneySupply*0.02)/485169)+nFees;
 }
 
-int64_t GetPoSPRewardV3(int64_t nMoneySupply, int nFees, bool fMnode){
+int64_t GetPoSPRewardV3(int64_t nMoneySupply, int nFees){
     // Participation nodes get 3% of half the supply annually; normal nodes, get 1% of the other half of the supply annually
-    return (((nMoneySupply / 2) * (fMnode ? 0.03 : 0.01)) / 485169) + nFees;
+    return (((nMoneySupply / 2) * 0.01) / 485169) + nFees;
 }
 
 bool IsBlockValueValid(const CBlock& block, int64_t nExpectedValue)
@@ -1534,13 +1533,13 @@ bool IsBlockValueValid(const CBlock& block, int64_t nExpectedValue)
     return block.vtx[0].GetValueOut() <= nExpectedValue;
 }
 
-int64_t GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS, bool fMnode)
+int64_t GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS)
 {
     if(fPoS){
         if(nHeight > HARDFORK_HEIGHTV5)
-            return 5000 * COIN;
+            return 2000 * COIN;
         if(nHeight > HARDFORK_HEIGHTV5)
-            return GetPoSPRewardV3(nMoneySupply, nFees, fMnode);
+            return GetPoSPRewardV3(nMoneySupply, nFees);
 
         if(nHeight >= HARDFORK_HEIGHTV4)
             return GetPoSPRewardV2(nMoneySupply, nFees);
@@ -1559,14 +1558,23 @@ int64_t GetMasternodePayment(int nHeight, int64_t nMoneySupply, int64_t nFees)
     if(nHeight <= HARDFORK_HEIGHTV5)
         return 0;
 
-    return ((nMoneySupply*0.015)/485169) + nFees;
+    // Participation nodes get 3% of half the supply annually; normal nodes, get 1% of the other half of the supply annually
+    return (((nMoneySupply / 2) * 0.03) / 485169) + nFees;
 }
 
 
-const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake, bool fBPN)
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake)
 {
-    while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake))
+    while (pindex && pindex->pprev && (pindex->IsProofOfStake() != fProofOfStake || pindex->IsBPNPoSP()))
         pindex = pindex->pprev;
+    return pindex;
+}
+
+const CBlockIndex* GetLastBPNBlockIndex(const CBlockIndex* pindex)
+{
+    while (pindex && pindex->pprev && !pindex->IsBPNPoSP())
+        pindex = pindex->pprev;
+
     return pindex;
 }
 
@@ -1777,11 +1785,11 @@ unsigned int GetNextTargetRequiredBPN(const CBlockIndex* pindexLast)
     if (pindexLast == NULL)
         return bnProofOfStakeLimitV2.GetCompact(); // genesis block
 
-    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, true, true);
+    const CBlockIndex* pindexPrev = GetLastBPNBlockIndex(pindexLast);
     if (pindexPrev->pprev == NULL)
         return bnProofOfStakeLimitV2.GetCompact(); // first block
 
-    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, true, true);
+    const CBlockIndex* pindexPrevPrev = GetLastBPNBlockIndex(pindexPrev->pprev);
     if (pindexPrevPrev->pprev == NULL)
         return bnProofOfStakeLimitV2.GetCompact(); // second block
 
@@ -2246,6 +2254,10 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         return state.DoS(100, error("ConnectBlock() : PoW period ended"),
             REJECT_INVALID, "PoW-ended");
 
+    if (pindex->nHeight <= HARDFORK_HEIGHTV5 && (block.IsMutex() || block.IsKeepAlive()))
+        return state.DoS(100, error("ConnectBlock() : BPN period did not start yet"),
+            REJECT_INVALID, "BPN-not-started");
+
     bool fScriptChecks = true;
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
@@ -2358,9 +2370,17 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     if(block.vtx.size() > 0)
         GetCoinAge(block.vtx[0], block.vtx[0].nTime, nCoinAge);
     //    return error("ConnectInputs() : %s unable to get coin age for coinstake", GetHash().ToString().substr(0,10).c_str());
-    int64_t nReward = GetBlockValue(nCoinAge, pindex->pprev->nBits, block.nTime, pindex->pprev->nHeight, pindex->pprev->nMoneySupply, nFees);
+    int64_t nReward = 0;
+    
+    if(!pindex->IsMutex())
+    {
+        if(pindex->IsBPNPoSP())
+            nReward = GetMasternodePayment(pindex->pprev->nHeight, pindex->pprev->nMoneySupply, nFees);
+        else
+            nReward = GetBlockValue(nCoinAge, pindex->pprev->nBits, block.nTime, pindex->pprev->nHeight, pindex->pprev->nMoneySupply, nFees, pindex->IsProofOfStake());
+    }
 
-    if (!IsInitialBlockDownload() && !IsBlockValueValid(block, nReward)) {
+    if (!IsBlockValueValid(block, nReward) && !block.IsMutex()) {
         return state.DoS(100,
             error("ConnectBlock() : reward pays too much (actual=%d vs limit=%d)",
                 block.vtx[0].GetValueOut(), nReward),
@@ -2401,6 +2421,24 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
     // add this block to the view's block chain
     view.SetBestBlock(pindex->GetBlockHash());
+
+    // Track BPN TX to keep mutex alive
+    if(block.IsMutex() || block.IsKeepAlive() || block.IsBPNPoSP())
+    {
+        mapMutexIndex.insert(block.nTime);
+        BlockMutexData * bmd = new BlockMutexData();
+
+        bmd->nHeight = pindex->nHeight;
+        bmd->bpnAddress = block.bpnAddress;
+        bmd->bpnTx = block.bpnTx;
+        bmd->nTime = block.nTime;
+
+        mapMutex[block.nTime] = bmd;
+        mapKAMutex[make_pair(block.bpnAddress, block.IsMutex() ? block.bpnTx : block.kaTx)] = bmd;
+        latestKAMutex[make_pair(block.bpnAddress, block.bpnTx)] = block.nTime;
+        // To check if a mutex is still alive, we check if the previous KA pair address/tx is valid (the previous pair could be a mutex, a KA or a BPN PoSP)
+        // Check mutex place at a given time: a map of map[nTime] = BMD is storing mutex over time, browsing the map in revert, my place is between myTime-24h and myTime, when arrived to my time, we have the place.
+    }
 
     int64_t nTime3 = GetTimeMicros();
     nTimeIndex += nTime3 - nTime2;
@@ -3085,6 +3123,8 @@ bool ReceivedBlockTransactions(const CBlock& block, CValidationState& state, CBl
 {
     if (block.IsProofOfStake())
         pindexNew->SetProofOfStake();
+    
+    pindexNew->nExtraFlag = block.nExtraFlag;
     pindexNew->nTx = block.vtx.size();
     pindexNew->nChainTx = 0;
     pindexNew->nFile = pos.nFile;
@@ -3237,7 +3277,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
         bool mutated;
         uint256 hashMerkleRoot2 = block.BuildMerkleTree(&mutated);
         if (block.hashMerkleRoot != hashMerkleRoot2)
-            return state.DoS(100, error("CheckBlock() : hashMerkleRoot mismatch"),
+            return state.DoS(100, error("CheckBlock() : hashMerkleRoot mismatch %s != %s", hashMerkleRoot2.ToString(), block.hashMerkleRoot.ToString()),
                 REJECT_INVALID, "bad-txnmrklroot", true);
 
         // Check for merkle tree malleability (CVE-2012-2459): repeating sequences
@@ -3257,7 +3297,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
 		return state.DoS(100, error("CheckBlock() : size limits failed"),
             REJECT_INVALID, "bad-blk-length");
     // First transaction must be coinbase, the rest must not be
-    if (block.vtx.empty() || !block.vtx[0].IsCoinBase())
+    if (!block.IsMutex() && (block.vtx.empty() || !block.vtx[0].IsCoinBase()))
         return state.DoS(100, error("CheckBlock() : first tx is not coinbase"),
             REJECT_INVALID, "bad-cb-missing");
 
@@ -3310,10 +3350,10 @@ bool CheckWork(const CBlock block, CBlockIndex* const pindexPrev)
     if (pindexPrev == NULL)
         return error("%s : null pindexPrev for block %s", __func__, block.GetHash().ToString().c_str());
 
-    unsigned int nBitsRequired = GetNextTargetRequired(pindexPrev, !block.IsProofOfWork());
+    unsigned int nBitsRequired = block.IsBPNPoSP() ? GetNextTargetRequiredBPN(pindexPrev) : GetNextTargetRequired(pindexPrev, !block.IsProofOfWork());
 
-    if (block.nBits != nBitsRequired)
-    /*;//STAKE2: 0x1c0fffff remove comment*/    return error("%s : incorrect proof of work at %d", __func__, pindexPrev->nHeight + 1);
+    if (!block.IsMutex() && block.nBits != nBitsRequired)
+        return error("%s : incorrect proof of work at %d", __func__, pindexPrev->nHeight + 1);
 
     if (block.IsProofOfStake()) {
         uint256 hashProofOfStake;
@@ -3323,8 +3363,59 @@ bool CheckWork(const CBlock block, CBlockIndex* const pindexPrev)
             LogPrintf("WARNING: ProcessBlock(): check proof-of-stake failed for block %s\n", hash.ToString().c_str());
             return false;
         }
+
+        if(block.IsBPNPoSP() || block.IsKeepAlive()) { // Check the mutex validity
+            if(mapBlockIndex.count(block.hashPrevKA) == 0)
+                return error("%s: Incorrect hashPrevKA, not found in block index map", __func__);
+            
+            if(mapBlockIndex[block.hashPrevKA]->nHeight >= pindexPrev->nHeight + 1) // It should never happen
+                return error("%s: Incorrect hashPrevKA, block is in the future", __func__);
+            
+            if(mapBlockIndex[block.hashPrevKA]->nTime+MUTEX_LIFE < block.nTime)
+                return error("%s: Previous KA has expired, mutex is dead", __func__);
+
+            if(mapBlockIndex[block.hashPrevKA]->bpnAddress != block.bpnAddress 
+                || mapBlockIndex[block.hashPrevKA]->bpnTx != block.bpnTx)
+                return error("%s: This is not a KA of the indicated block", __func__);
+
+            // Now check if the kaTx is coming from the last kaTx (vin)
+            CTransaction tx = block.vtx[1]; // This is the coins used for staking, it must be exactly 2k
+
+            if(tx.vout.size() != 3)
+                return error("%s: Incorrect vout size for a KA or BPN PoSP block, %u", __func__, tx.vout.size());
+
+            CTxDestination address;
+            CKeyID keyId;
+            if (!ExtractDestination(tx.vout[1].scriptPubKey, address) 
+                || !CBitcoinAddress(address).GetKeyID(keyId) 
+                || (uint160) keyId != block.bpnAddress)
+                return error("%s: Invalid destination of coin staked for a BPN PoSP or KA", __func__);
+
+            if(tx.vout[1].nValue != REQUIRED_AMOUNT_MASTERNODE * COIN)
+                return error("%s: Invalid amount of coin staked for a BPN PoSP or KA", __func__);
+
+            if(tx.vin.size() > 1)
+                return error("%s: Incorrect vin size for a KA or BPN PoSP block, %u", __func__, tx.vin.size());
+
+            if(tx.vin[0].prevout.hash != mapBlockIndex[block.hashPrevKA]->kaTx
+                && (!mapBlockIndex[block.hashPrevKA]->IsMutex() || mapBlockIndex[block.hashPrevKA]->bpnTx != tx.vin[0].prevout.hash))
+                return error("%s: Incorrect vin hash, vin is different than the previous KA block %s", __func__, tx.vin[0].prevout.hash.ToString().c_str());
+        }
+
+         if(block.IsBPNPoSP()){ // Check if the BPN PoSP is authorized (one of the 125 first BPN)
+            int place = GetBPNPlace(mapBlockIndex[block.hashPrevKA]->nTime, block.nTime);
+            if(place > MAX_MASTERNODE)
+                return error("%s: BPN is not part of the %i first nodes, %i/%i", __func__, MAX_MASTERNODE, place, MAX_MASTERNODE);
+         }
+
         if(!mapProofOfStake.count(hash)) // add to mapProofOfStake
             mapProofOfStake.insert(make_pair(hash, hashProofOfStake));
+    }else if(block.IsMutex()){
+        if(!CheckMutex(block, pindexPrev))
+        {
+            LogPrintf("WARNING: ProcessBlock(): check proof-of-mutex failed for block %s\n", block.GetHash().ToString().c_str());
+            return false;
+        }
     }
 
     return true;
@@ -3387,6 +3478,9 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
         if (!IsFinalTx(tx, nHeight, block.GetBlockTime())) {
             return state.DoS(10, error("%s : contains a non-final transaction", __func__), REJECT_INVALID, "bad-txns-nonfinal");
         }
+
+    if(block.IsMutex())
+        return true;
 
     // Enforce block.nVersion=2 rule that the coinbase starts with serialized block height
     // if 750 of the last 1,000 blocks are version 2 or greater (51/100 if testnet):
@@ -3781,6 +3875,21 @@ bool static LoadBlockIndexDB()
         pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
         if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum))
             return error("LoadBlockIndexDB() : Failed stake modifier checkpoint height=%d, modifier=0x%016lx", pindex->nHeight, pindex->nStakeModifier);
+
+        // CBX: Build mutex map
+        if(pindex->IsMutex() || pindex->IsBPNKeepAlive() || pindex->IsBPNPoSP())
+        {
+            mapMutexIndex.insert(pindex->nTime);
+            BlockMutexData * bmd = new BlockMutexData();
+
+            bmd->nHeight = pindex->nHeight;
+            bmd->bpnAddress = pindex->bpnAddress;
+            bmd->bpnTx = pindex->bpnTx;
+            bmd->nTime = pindex->nTime;
+
+            mapMutex[pindex->nTime] = bmd;
+            mapKAMutex[make_pair(pindex->bpnAddress, pindex->bpnTx)] = bmd;
+        }
     }
 
     // Load block file info
@@ -3979,7 +4088,7 @@ bool CVerifyDB::VerifyDB(CCoinsView* coinsview, int nCheckLevel, int nCheckDepth
             }
         }
         // check level 3: check for inconsistencies during memory-only disconnect of tip blocks
-        if (nCheckLevel >= 3 && pindex == pindexState && (coins.GetCacheSize() + pcoinsTip->GetCacheSize()) <= nCoinCacheSize) {
+        if (nCheckLevel >= 3 && pindex == pindexState && (coins.GetCacheSize() + pcoinsTip->GetCacheSize()) <= nCoinCacheSize && !pindex->IsMutex()) {
             bool fClean = true;
             if (!DisconnectBlock(block, state, pindex, coins, &fClean))
                 return error("VerifyDB() : *** irrecoverable inconsistency in block data at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());

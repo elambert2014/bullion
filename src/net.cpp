@@ -1388,6 +1388,23 @@ void static ThreadStakeMinter()
     LogPrintf("ThreadStakeMinter exiting,\n");
 }
 
+// cbx: stake BPN minter thread
+void static ThreadStakeBPNMinter()
+{
+    boost::this_thread::interruption_point();
+    LogPrintf("ThreadStakeBPNMinter started\n");
+    CWallet* pwallet = pwalletMain;
+    try {
+        BPNMiner(pwallet);
+        boost::this_thread::interruption_point();
+    } catch (std::exception& e) {
+        LogPrintf("ThreadStakeBPNMinter() exception \n");
+    } catch (...) {
+        LogPrintf("ThreadStakeBPNMinter() error \n");
+    }
+    LogPrintf("ThreadStakeBPNMinter exiting,\n");
+}
+
 bool BindListenPort(const CService& addrBind, string& strError, bool fWhitelisted)
 {
     strError = "";
@@ -1716,9 +1733,12 @@ void StartNode(boost::thread_group& threadGroup)
     // Dump network addresses
     threadGroup.create_thread(boost::bind(&LoopForever<void (*)()>, "dumpaddr", &DumpAddresses, DUMP_ADDRESSES_INTERVAL * 1000));
 
-    // ppcoin:mint proof-of-stake blocks in the background
+    // mint PoSP and BPN PoSP blocks in the background
     if (GetBoolArg("-staking", true))
+    {
         threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "stakemint", &ThreadStakeMinter));
+        threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "bpnmint", &ThreadStakeBPNMinter));
+    }
 }
 
 bool StopNode()

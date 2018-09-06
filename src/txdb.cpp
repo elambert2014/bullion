@@ -242,6 +242,15 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nStakeTime = diskindex.nStakeTime;
                 pindexNew->hashProofOfStake = diskindex.hashProofOfStake;
 
+                if(pindexNew->nVersion >= HARDFORKV5_BLOCKVERSION)
+                {
+                    pindexNew->nExtraFlag   = diskindex.nExtraFlag;
+                    pindexNew->pprevKA      = InsertBlockIndex(diskindex.hashPrevKA);
+                    pindexNew->kaTx         = diskindex.kaTx;
+                    pindexNew->bpnAddress   = diskindex.bpnAddress;
+                    pindexNew->bpnTx        = diskindex.bpnTx;
+                }
+
                 if (pindexNew->IsProofOfWork()) {
                     if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits))
                         return error("LoadBlockIndex() : CheckProofOfWork failed: %s", pindexNew->ToString());

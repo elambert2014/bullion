@@ -11,6 +11,11 @@
 #include "keystore.h"
 #include "serialize.h"
 #include "uint256.h"
+#include "constants.h"
+
+#define BLOCK_HEADER_FLAG_MASK_MUTEX    0x0000000f
+#define BLOCK_HEADER_FLAG_MASK_KA       0x000000f0
+#define BLOCK_HEADER_FLAG_MASK_BPNPOSP  0x00000f00
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
@@ -33,6 +38,11 @@ public:
     uint32_t nTime;
     uint32_t nBits;
     uint32_t nNonce;
+    uint32_t nExtraFlag;
+    uint256 hashPrevKA;
+    uint256 kaTx;
+    uint160 bpnAddress;
+    uint256 bpnTx;
 
     CBlockHeader()
     {
@@ -50,6 +60,15 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        if(this->nVersion >= HARDFORKV5_BLOCKVERSION)
+        {
+            READWRITE(nExtraFlag);
+            READWRITE(hashPrevKA);
+            READWRITE(kaTx);
+            READWRITE(bpnAddress);
+            READWRITE(bpnTx);
+        }
     }
 
     void SetNull()
@@ -60,6 +79,11 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        nExtraFlag = 0;
+        hashPrevKA.SetNull();
+        kaTx.SetNull();
+        bpnAddress.SetNull();
+        bpnTx.SetNull();
     }
 
     bool IsNull() const
@@ -72,6 +96,21 @@ public:
     int64_t GetBlockTime() const
     {
         return (int64_t)nTime;
+    }
+
+    bool IsMutex() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_MUTEX;
+    }
+
+    bool IsKeepAlive() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_KA;
+    }
+
+    bool IsBPNPoSP() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_BPNPOSP;
     }
 };
 
@@ -136,6 +175,11 @@ public:
         block.nTime                 = nTime;
         block.nBits                 = nBits;
         block.nNonce                = nNonce;
+        block.nExtraFlag            = nExtraFlag;
+        block.hashPrevKA            = hashPrevKA;
+        block.kaTx                  = kaTx;
+        block.bpnAddress            = bpnAddress;
+        block.bpnTx                 = bpnTx;
 
         return block;
     }
@@ -148,7 +192,7 @@ public:
 
     bool IsProofOfWork() const
     {
-        return !IsProofOfStake();
+        return !IsProofOfStake() && !IsMutex();
     }
 
     unsigned int ComputeStakeEntropyBit(unsigned int nHeight) const

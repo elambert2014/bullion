@@ -174,6 +174,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    unsigned int nExtraFlag;
+    CBlockIndex * pprevKA; // Hash of the previous KA block (is null if it is the mutex)
+    uint256 kaTx;
+    uint160 bpnAddress;
+    uint256 bpnTx;
 
     //! (memory only) Sequential id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
@@ -207,6 +212,11 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        nExtraFlag = 0;
+        pprevKA = NULL;
+        kaTx = uint256();
+        bpnAddress = uint160();
+        bpnTx = uint256();
     }
 
     CBlockIndex()
@@ -241,6 +251,11 @@ public:
             prevoutStake.SetNull();
             nStakeTime = 0;
         }
+    
+        nExtraFlag = block.nExtraFlag;
+        kaTx = block.kaTx;
+        bpnAddress = block.bpnAddress;
+        bpnTx = block.bpnTx;
     }
 
     CDiskBlockPos GetBlockPos() const
@@ -273,6 +288,13 @@ public:
         block.nTime = nTime;
         block.nBits = nBits;
         block.nNonce = nNonce;
+        block.nExtraFlag = nExtraFlag;
+        if(pprevKA)
+            block.hashPrevKA = pprevKA->GetBlockHash();
+        block.kaTx = kaTx;
+        block.bpnAddress = bpnAddress;
+        block.bpnTx = bpnTx;
+
         return block;
     }
 
@@ -304,12 +326,27 @@ public:
 
     bool IsProofOfWork() const
     {
-        return !(nFlags & BLOCK_PROOF_OF_STAKE);
+        return !(nFlags & BLOCK_PROOF_OF_STAKE) && !IsMutex();
     }
 
     bool IsProofOfStake() const
     {
-        return (nFlags & BLOCK_PROOF_OF_STAKE);
+        return (nFlags & BLOCK_PROOF_OF_STAKE) && !IsMutex();
+    }
+
+    bool IsMutex() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_MUTEX;
+    }
+
+    bool IsBPNKeepAlive() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_KA;
+    }
+
+    bool IsBPNPoSP() const
+    {
+        return nExtraFlag & BLOCK_HEADER_FLAG_MASK_BPNPOSP;
     }
 
     void SetProofOfStake()
@@ -396,12 +433,14 @@ private:
 public:
     uint256 hashPrev;
     uint256 hashNext;
+    uint256 hashPrevKA;
 
     CDiskBlockIndex()
     {
         hashPrev = uint256();
         hashNext = uint256();
         blockHash = uint256();
+        hashPrevKA = uint256();
     }
 
     explicit CDiskBlockIndex(CBlockIndex* pindex) : CBlockIndex(*pindex)
@@ -451,9 +490,25 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        if (!ser_action.ForRead() && blockHash == 0)
-            GetBlockHash(); // Force calculation of block hash
-        READWRITE(blockHash);
+        if(this->nVersion < HARDFORKV5_BLOCKVERSION)
+        {
+            if (!ser_action.ForRead() && blockHash == 0)
+                GetBlockHash(); // Force calculation of block hash
+            READWRITE(blockHash);
+        }
+
+        if(this->nVersion >= HARDFORKV5_BLOCKVERSION)
+        {
+            READWRITE(nExtraFlag);
+            READWRITE(hashPrevKA);
+            READWRITE(kaTx);
+            READWRITE(bpnAddress);
+            READWRITE(bpnTx);
+
+            if (!ser_action.ForRead() && blockHash == 0)
+                GetBlockHash(); // Force calculation of block hash
+            READWRITE(blockHash);
+        }
     }
 
     uint256 GetBlockHash() const
@@ -468,7 +523,15 @@ public:
         block.nTime = nTime;
         block.nBits = nBits;
         block.nNonce = nNonce;
-        //block.masterNodePubAddress = masterNodePubAddress;  // AMB: may affect struct block_header in scrypt_mine.h
+
+        if(nVersion >= HARDFORKV5_BLOCKVERSION)
+        {
+            block.nExtraFlag = nExtraFlag;
+            block.hashPrevKA = hashPrevKA;
+            block.kaTx       = kaTx;
+            block.bpnAddress = bpnAddress;
+            block.bpnTx      = bpnTx;
+        }
 
         const_cast<CDiskBlockIndex*>(this)->blockHash = block.GetHash();
 
