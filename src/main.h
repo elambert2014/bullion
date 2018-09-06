@@ -265,7 +265,7 @@ unsigned int GetNextTargetRequiredBPN(const CBlockIndex* pindexLast);
 
 bool ActivateBestChain(CValidationState& state, CBlock* pblock = NULL);
 bool IsBlockValueValid(const CBlock& block, int64_t nExpectedValue);
-CAmount GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS=false);
+CAmount GetBlockValue(int64_t nCoinAge, unsigned int nBits, unsigned int nTime, unsigned int nHeight, int64_t nMoneySupply, int nFees, bool fPoS);
 
 /** Create a new block index entry for a given block hash */
 CBlockIndex* InsertBlockIndex(uint256 hash);
